@@ -18,6 +18,7 @@ class SpeechInputManager(private val context: Context) {
     }
 
     fun startListening(
+        targetSentence: String? = null,
         onResult: (String) -> Unit,
         onError: (String) -> Unit,
         onListeningStateChanged: (Boolean) -> Unit
@@ -27,9 +28,10 @@ class SpeechInputManager(private val context: Context) {
             return
         }
 
-        stopListening()
+        destroy()
 
         try {
+            var lastPartialText = ""
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
                 setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
@@ -46,22 +48,45 @@ class SpeechInputManager(private val context: Context) {
 
                     override fun onError(error: Int) {
                         onListeningStateChanged(false)
-                        val message = getFriendlyErrorMessage(error)
-                        onError(message)
+                        if (lastPartialText.isNotBlank()) {
+                            onResult(lastPartialText)
+                        } else {
+                            val message = getFriendlyErrorMessage(error)
+                            onError(message)
+                        }
                     }
 
                     override fun onResults(results: Bundle?) {
                         onListeningStateChanged(false)
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val spokenText = matches?.firstOrNull() ?: ""
-                        if (spokenText.isNotBlank()) {
-                            onResult(spokenText)
+                        val candidateList = mutableListOf<String>()
+                        if (!matches.isNullOrEmpty()) {
+                            candidateList.addAll(matches)
+                        }
+                        if (lastPartialText.isNotBlank() && !candidateList.contains(lastPartialText)) {
+                            candidateList.add(lastPartialText)
+                        }
+
+                        if (candidateList.isNotEmpty()) {
+                            val bestText = if (!targetSentence.isNullOrBlank()) {
+                                candidateList.maxByOrNull { calculateAccuracy(targetSentence, it) } ?: candidateList.first()
+                            } else {
+                                candidateList.first()
+                            }
+                            onResult(bestText)
                         } else {
-                            onError("Suara tidak tertangkap jelas. Silakan coba lagi atau gunakan Dialog Suara.")
+                            onError("Suara belum terdeteksi jelas. Silakan coba lagi atau gunakan tombol Lanjut.")
                         }
                     }
 
-                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val candidate = matches?.firstOrNull()
+                        if (!candidate.isNullOrBlank()) {
+                            lastPartialText = candidate
+                        }
+                    }
+
                     override fun onEvent(eventType: Int, params: Bundle?) {}
                 })
             }
@@ -70,9 +95,11 @@ class SpeechInputManager(private val context: Context) {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
-                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "en-US")
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
             }
 
             speechRecognizer?.startListening(intent)
@@ -82,7 +109,15 @@ class SpeechInputManager(private val context: Context) {
         }
     }
 
+    /** Tells the recognizer that speaking has finished, letting it process and trigger onResults. */
     fun stopListening() {
+        try {
+            speechRecognizer?.stopListening()
+        } catch (_: Exception) {}
+    }
+
+    /** Fully cancels and releases the speech recognizer resources. */
+    fun destroy() {
         try {
             speechRecognizer?.stopListening()
             speechRecognizer?.cancel()
@@ -140,12 +175,17 @@ class SpeechInputManager(private val context: Context) {
 
             if (targetWords.isEmpty()) return 0
 
-            // Word overlap score
+            // Word overlap score with adaptive tolerance for pronunciation accents
             var matchedWords = 0
             val spokenPool = spokenWords.toMutableList()
             for (tw in targetWords) {
+                val maxDist = when {
+                    tw.length <= 3 -> 0
+                    tw.length <= 6 -> 1
+                    else -> 2
+                }
                 val matchIdx = spokenPool.indexOfFirst { sw ->
-                    sw == tw || levenshteinDistance(sw, tw) <= 1
+                    sw == tw || (kotlin.math.abs(sw.length - tw.length) <= maxDist && levenshteinDistance(sw, tw) <= maxDist)
                 }
                 if (matchIdx != -1) {
                     matchedWords++
@@ -153,7 +193,8 @@ class SpeechInputManager(private val context: Context) {
                 }
             }
 
-            val wordScore = (matchedWords.toFloat() / targetWords.size.toFloat()) * 100f
+            val wordRatio = matchedWords.toFloat() / targetWords.size.toFloat()
+            val wordScore = wordRatio * 100f
 
             // Character level similarity
             val maxLen = max(cleanTarget.length, cleanSpoken.length)
@@ -161,14 +202,47 @@ class SpeechInputManager(private val context: Context) {
             val charScore = ((maxLen - dist).toFloat() / maxLen.toFloat()).coerceIn(0f, 1f) * 100f
 
             // Blended accuracy
-            val finalScore = (wordScore * 0.7f + charScore * 0.3f).toInt()
+            val baseScore = (wordScore * 0.75f + charScore * 0.25f).toInt()
+
+            // Generous boost for language learners when majority of words are spoken correctly:
+            val finalScore = when {
+                wordRatio >= 0.9f -> maxOf(baseScore, 90)
+                wordRatio >= 0.7f -> maxOf(baseScore, 75)
+                wordRatio >= 0.5f -> maxOf(baseScore, 60)
+                else -> baseScore
+            }
             return finalScore.coerceIn(0, 100)
         }
 
         private fun normalizeText(text: String): String {
-            return text.lowercase(Locale.ROOT)
-                .replace("[^a-z0-9\\s]".toRegex(), "")
+            var s = text.lowercase(Locale.ROOT)
+            val contractions = mapOf(
+                "\\bit's\\b" to "it is",
+                "\\bi'm\\b" to "i am",
+                "\\bdon't\\b" to "do not",
+                "\\bcan't\\b" to "cannot",
+                "\\bwe'll\\b" to "we will",
+                "\\bthey're\\b" to "they are",
+                "\\byou're\\b" to "you are",
+                "\\bhe's\\b" to "he is",
+                "\\bshe's\\b" to "she is",
+                "\\bthat's\\b" to "that is",
+                "\\bwhat's\\b" to "what is"
+            )
+            for ((pattern, replacement) in contractions) {
+                s = s.replace(pattern.toRegex(), replacement)
+            }
+            val digits = mapOf(
+                "\\b0\\b" to "zero", "\\b1\\b" to "one", "\\b2\\b" to "two", "\\b3\\b" to "three",
+                "\\b4\\b" to "four", "\\b5\\b" to "five", "\\b6\\b" to "six", "\\b7\\b" to "seven",
+                "\\b8\\b" to "eight", "\\b9\\b" to "nine", "\\b10\\b" to "ten"
+            )
+            for ((pattern, replacement) in digits) {
+                s = s.replace(pattern.toRegex(), replacement)
+            }
+            return s.replace("[^a-z0-9\\s]".toRegex(), " ")
                 .trim()
+                .replace("\\s+".toRegex(), " ")
         }
 
         private fun levenshteinDistance(s1: String, s2: String): Int {

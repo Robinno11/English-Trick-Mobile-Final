@@ -4,10 +4,12 @@ sealed interface BaseQuestion {
     val id: String
     val category: TestCategory
     val level: DifficultyLevel
+    val skill: SkillType
 }
 
 data class ReadingQuestion(
     override val id: String,
+    override val category: TestCategory,
     override val level: DifficultyLevel,
     val passageTitle: String,
     val passageText: String,
@@ -16,11 +18,12 @@ data class ReadingQuestion(
     val correctIndex: Int,
     val explanation: String
 ) : BaseQuestion {
-    override val category: TestCategory = TestCategory.READING
+    override val skill: SkillType = SkillType.READING
 }
 
 data class ListeningQuestion(
     override val id: String,
+    override val category: TestCategory,
     override val level: DifficultyLevel,
     val audioTitle: String,
     val audioSpeaker: String,
@@ -30,30 +33,18 @@ data class ListeningQuestion(
     val correctIndex: Int,
     val explanation: String
 ) : BaseQuestion {
-    override val category: TestCategory = TestCategory.LISTENING
+    override val skill: SkillType = SkillType.LISTENING
 }
 
 data class SpeakingQuestion(
     override val id: String,
+    override val category: TestCategory,
     override val level: DifficultyLevel,
     val title: String,
     val context: String,
     val targetSentence: String,
-    val phoneticGuide: String,
-    val tip: String
+    val tip: String,
+    val phoneticGuide: String = ""
 ) : BaseQuestion {
-    override val category: TestCategory = TestCategory.SPEAKING
-}
-
-data class WritingQuestion(
-    override val id: String,
-    override val level: DifficultyLevel,
-    val topicTitle: String,
-    val prompt: String,
-    val minWords: Int,
-    val suggestedKeywords: List<String>,
-    val modelAnswer: String,
-    val grammarTips: String
-) : BaseQuestion {
-    override val category: TestCategory = TestCategory.WRITING
+    override val skill: SkillType = SkillType.SPEAKING
 }

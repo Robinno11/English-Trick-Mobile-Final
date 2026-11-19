@@ -2,6 +2,8 @@ package com.example.appmobileenglishtrick
 
 import com.example.appmobileenglishtrick.audio.SpeechInputManager
 import com.example.appmobileenglishtrick.data.model.DifficultyLevel
+import com.example.appmobileenglishtrick.data.model.QuestionReview
+import com.example.appmobileenglishtrick.data.model.SkillType
 import com.example.appmobileenglishtrick.data.model.TestCategory
 import com.example.appmobileenglishtrick.data.model.TestResult
 import com.example.appmobileenglishtrick.data.repository.TestRepository
@@ -48,25 +50,43 @@ class EnglishTrickTest {
     @Test
     fun testResultFeedbackIncludesSlogan() {
         val resultA = TestResult(
-            category = TestCategory.SPEAKING,
-            level = DifficultyLevel.EASY,
-            score = 90,
-            totalQuestions = 3,
-            correctCount = 3,
-            reviews = emptyList()
+            category = TestCategory.SPEAKING_BOOSTER,
+            level = DifficultyLevel.LEVEL_1,
+            reviews = listOf(
+                QuestionReview(
+                    questionNumber = 1,
+                    skill = SkillType.SPEAKING,
+                    prompt = "English Trick No Speak No Trick",
+                    userAnswer = "English Trick No Speak No Trick",
+                    correctAnswer = "English Trick No Speak No Trick",
+                    isCorrect = true,
+                    scorePercent = 90,
+                    explanation = ""
+                )
+            )
         )
         assertEquals("A (Excellent)", resultA.grade)
+        assertEquals(90, resultA.score)
         assertTrue(resultA.feedbackMessage.contains("No Speak No Trick"))
 
         val resultC = TestResult(
-            category = TestCategory.READING,
-            level = DifficultyLevel.MEDIUM,
-            score = 60,
-            totalQuestions = 3,
-            correctCount = 2,
-            reviews = emptyList()
+            category = TestCategory.KIDS,
+            level = DifficultyLevel.LEVEL_2,
+            reviews = listOf(
+                QuestionReview(
+                    questionNumber = 1,
+                    skill = SkillType.READING,
+                    prompt = "Hello",
+                    userAnswer = "Hello",
+                    correctAnswer = "Hello",
+                    isCorrect = true,
+                    scorePercent = 60,
+                    explanation = ""
+                )
+            )
         )
         assertEquals("C (Needs Practice)", resultC.grade)
+        assertEquals(60, resultC.score)
         assertTrue(resultC.feedbackMessage.contains("No Speak No Trick"))
     }
 }

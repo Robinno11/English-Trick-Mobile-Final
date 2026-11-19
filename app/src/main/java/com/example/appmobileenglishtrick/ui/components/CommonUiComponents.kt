@@ -47,7 +47,10 @@ import com.example.appmobileenglishtrick.R
 import com.example.appmobileenglishtrick.ui.theme.LogoCyan
 import com.example.appmobileenglishtrick.ui.theme.LogoPink
 import com.example.appmobileenglishtrick.data.model.DifficultyLevel
+import com.example.appmobileenglishtrick.data.model.SkillType
 import com.example.appmobileenglishtrick.data.model.TestCategory
+import com.example.appmobileenglishtrick.ui.theme.color
+import com.example.appmobileenglishtrick.ui.theme.bgColor
 import com.example.appmobileenglishtrick.ui.theme.AccentAmber
 import com.example.appmobileenglishtrick.ui.theme.AccentOrange
 import com.example.appmobileenglishtrick.ui.theme.CardBorderLight
@@ -179,10 +182,9 @@ fun CategoryCard(
         ) {
             Surface(
                 color = when (category) {
-                    TestCategory.READING -> Color(0xFFEFF6FF)
-                    TestCategory.LISTENING -> Color(0xFFFDF2F8)
-                    TestCategory.SPEAKING -> Color(0xFFFFFBEB)
-                    TestCategory.WRITING -> Color(0xFFF0FDF4)
+                    TestCategory.KIDS -> Color(0xFFEFF6FF)
+                    TestCategory.TEENS -> Color(0xFFFDF2F8)
+                    TestCategory.SPEAKING_BOOSTER -> Color(0xFFFFFBEB)
                 },
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.size(54.dp)
@@ -208,7 +210,7 @@ fun CategoryCard(
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            text = "3 Levels",
+                            text = "5 Levels",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = PrimaryBlue,
@@ -236,17 +238,8 @@ fun LevelCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val levelColor = when (level) {
-        DifficultyLevel.EASY -> LevelEasy
-        DifficultyLevel.MEDIUM -> LevelMedium
-        DifficultyLevel.HARD -> LevelHard
-    }
-
-    val levelBg = when (level) {
-        DifficultyLevel.EASY -> LevelEasyBg
-        DifficultyLevel.MEDIUM -> LevelMediumBg
-        DifficultyLevel.HARD -> LevelHardBg
-    }
+    val levelColor = level.color()
+    val levelBg = level.bgColor()
 
     Card(
         modifier = modifier
@@ -289,7 +282,7 @@ fun LevelCard(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "⭐ +${level.xpReward} XP",
+                        text = "🎯 Min ${level.speakingPassScore}%",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = AccentOrange
@@ -300,7 +293,7 @@ fun LevelCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "${level.title} Level Test",
+                text = "${level.title} Test",
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
                 color = MaterialTheme.colorScheme.onSurface
@@ -352,14 +345,11 @@ fun TestProgressHeader(
     level: DifficultyLevel,
     currentIndex: Int,
     totalQuestions: Int,
+    currentSkill: SkillType? = null,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val levelColor = when (level) {
-        DifficultyLevel.EASY -> LevelEasy
-        DifficultyLevel.MEDIUM -> LevelMedium
-        DifficultyLevel.HARD -> LevelHard
-    }
+    val levelColor = level.color()
 
     Column(
         modifier = modifier
@@ -391,6 +381,21 @@ fun TestProgressHeader(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
+                if (currentSkill != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        color = PrimaryBlue.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "${currentSkill.iconEmoji} ${currentSkill.title}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryBlue,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
 
             Surface(
@@ -420,7 +425,9 @@ fun TestProgressHeader(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
-            val progressPercent = ((currentIndex + 1).toFloat() / totalQuestions.toFloat() * 100).toInt()
+            val progressPercent = if (totalQuestions > 0) {
+                ((currentIndex + 1).toFloat() / totalQuestions.toFloat() * 100).toInt()
+            } else 0
             Text(
                 text = "$progressPercent%",
                 fontSize = 13.sp,
@@ -432,7 +439,7 @@ fun TestProgressHeader(
         Spacer(modifier = Modifier.height(6.dp))
 
         LinearProgressIndicator(
-            progress = { (currentIndex + 1).toFloat() / totalQuestions.toFloat() },
+            progress = { if (totalQuestions > 0) (currentIndex + 1).toFloat() / totalQuestions.toFloat() else 0f },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)
@@ -514,7 +521,7 @@ private fun CategoryCardPreview() {
     AppMobileEnglishTrickTheme {
         Box(modifier = Modifier.padding(16.dp)) {
             CategoryCard(
-                category = TestCategory.SPEAKING,
+                category = TestCategory.KIDS,
                 onClick = {}
             )
         }
@@ -527,8 +534,8 @@ private fun LevelCardPreview() {
     AppMobileEnglishTrickTheme {
         Box(modifier = Modifier.padding(16.dp)) {
             LevelCard(
-                level = DifficultyLevel.MEDIUM,
-                questionCount = 10,
+                level = DifficultyLevel.LEVEL_1,
+                questionCount = 6,
                 onClick = {}
             )
         }
@@ -540,10 +547,11 @@ private fun LevelCardPreview() {
 private fun TestProgressHeaderPreview() {
     AppMobileEnglishTrickTheme {
         TestProgressHeader(
-            category = TestCategory.LISTENING,
-            level = DifficultyLevel.HARD,
+            category = TestCategory.KIDS,
+            level = DifficultyLevel.LEVEL_1,
             currentIndex = 2,
-            totalQuestions = 5,
+            totalQuestions = 6,
+            currentSkill = SkillType.LISTENING,
             onBackClick = {}
         )
     }

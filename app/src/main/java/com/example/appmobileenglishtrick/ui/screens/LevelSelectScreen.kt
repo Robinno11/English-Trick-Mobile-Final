@@ -149,29 +149,15 @@ fun LevelSelectScreen(
             }
         }
 
-        // Levels: Easy, Medium, Hard
-        item {
-            LevelCard(
-                level = DifficultyLevel.EASY,
-                questionCount = TestRepository.getTotalQuestionCount(category, DifficultyLevel.EASY),
-                onClick = { onSelectLevel(DifficultyLevel.EASY) }
-            )
-        }
-
-        item {
-            LevelCard(
-                level = DifficultyLevel.MEDIUM,
-                questionCount = TestRepository.getTotalQuestionCount(category, DifficultyLevel.MEDIUM),
-                onClick = { onSelectLevel(DifficultyLevel.MEDIUM) }
-            )
-        }
-
-        item {
-            LevelCard(
-                level = DifficultyLevel.HARD,
-                questionCount = TestRepository.getTotalQuestionCount(category, DifficultyLevel.HARD),
-                onClick = { onSelectLevel(DifficultyLevel.HARD) }
-            )
+        // Levels: 1 to 5
+        DifficultyLevel.entries.forEach { level ->
+            item {
+                LevelCard(
+                    level = level,
+                    questionCount = TestRepository.getTotalQuestionCount(category, level),
+                    onClick = { onSelectLevel(level) }
+                )
+            }
         }
 
         // English Trick Motto Footer
@@ -194,24 +180,24 @@ fun LevelSelectScreen(
     }
 }
 
-@Preview(showBackground = true, name = "Level Select - Speaking")
+@Preview(showBackground = true, name = "Level Select - Kids")
 @Composable
-private fun LevelSelectSpeakingPreview() {
+private fun LevelSelectKidsPreview() {
     AppMobileEnglishTrickTheme {
         LevelSelectScreen(
-            category = TestCategory.SPEAKING,
+            category = TestCategory.KIDS,
             onSelectLevel = {},
             onBackClick = {}
         )
     }
 }
 
-@Preview(showBackground = true, name = "Level Select - Reading")
+@Preview(showBackground = true, name = "Level Select - Speaking Booster")
 @Composable
-private fun LevelSelectReadingPreview() {
+private fun LevelSelectSpeakingBoosterPreview() {
     AppMobileEnglishTrickTheme {
         LevelSelectScreen(
-            category = TestCategory.READING,
+            category = TestCategory.SPEAKING_BOOSTER,
             onSelectLevel = {},
             onBackClick = {}
         )
@@ -222,7 +208,7 @@ private fun LevelSelectReadingPreview() {
 @Composable
 private fun LevelSelectInteractivePreview() {
     AppMobileEnglishTrickTheme {
-        var selectedCategory by remember { mutableStateOf(TestCategory.SPEAKING) }
+        var selectedCategory by remember { mutableStateOf(TestCategory.KIDS) }
         var selectedLevel by remember { mutableStateOf<DifficultyLevel?>(null) }
 
         Column {
@@ -232,10 +218,10 @@ private fun LevelSelectInteractivePreview() {
                     selectedLevel = level
                 },
                 onBackClick = {
-                    selectedCategory = if (selectedCategory == TestCategory.SPEAKING) {
-                        TestCategory.LISTENING
+                    selectedCategory = if (selectedCategory == TestCategory.KIDS) {
+                        TestCategory.TEENS
                     } else {
-                        TestCategory.SPEAKING
+                        TestCategory.KIDS
                     }
                 }
             )

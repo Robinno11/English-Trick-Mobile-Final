@@ -10,27 +10,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.appmobileenglishtrick.audio.EnglishTtsManager
 import com.example.appmobileenglishtrick.data.model.DifficultyLevel
 import com.example.appmobileenglishtrick.data.model.QuestionReview
+import com.example.appmobileenglishtrick.data.model.SkillType
 import com.example.appmobileenglishtrick.data.model.TestCategory
 import com.example.appmobileenglishtrick.data.model.TestResult
 import com.example.appmobileenglishtrick.ui.screens.HomeScreen
 import com.example.appmobileenglishtrick.ui.screens.LevelSelectScreen
-import com.example.appmobileenglishtrick.ui.screens.ListeningTestScreen
-import com.example.appmobileenglishtrick.ui.screens.ReadingTestScreen
+import com.example.appmobileenglishtrick.ui.screens.QuizScreen
 import com.example.appmobileenglishtrick.ui.screens.ResultScreen
-import com.example.appmobileenglishtrick.ui.screens.SpeakingTestScreen
-import com.example.appmobileenglishtrick.ui.screens.WritingTestScreen
 import com.example.appmobileenglishtrick.ui.theme.AppMobileEnglishTrickTheme
 
 sealed interface AppScreen {
@@ -77,14 +72,6 @@ fun MainApp(
 ) {
     var currentScreen by remember { mutableStateOf<AppScreen>(initialScreen) }
 
-    // User statistics
-    var completedTestsCount by remember { mutableIntStateOf(0) }
-    var totalScoreAccumulated by remember { mutableIntStateOf(0) }
-
-    val averageScore = if (completedTestsCount > 0) {
-        totalScoreAccumulated / completedTestsCount
-    } else 0
-
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         when (val screen = currentScreen) {
             is AppScreen.Home -> {
@@ -92,8 +79,6 @@ fun MainApp(
                     onSelectCategory = { category ->
                         currentScreen = AppScreen.LevelSelect(category)
                     },
-                    completedTestsCount = completedTestsCount,
-                    averageScore = averageScore,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -121,60 +106,20 @@ fun MainApp(
                 }
 
                 val onTestFinished: (TestResult) -> Unit = { result ->
-                    completedTestsCount++
-                    totalScoreAccumulated += result.score
                     currentScreen = AppScreen.Result(result)
                 }
 
-                when (screen.category) {
-                    TestCategory.READING -> {
-                        ReadingTestScreen(
-                            level = screen.level,
-                            onTestFinished = onTestFinished,
-                            onBackClick = {
-                                currentScreen = AppScreen.LevelSelect(screen.category)
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-
-                    TestCategory.LISTENING -> {
-                        ListeningTestScreen(
-                            level = screen.level,
-                            ttsManager = ttsManager,
-                            onTestFinished = onTestFinished,
-                            onBackClick = {
-                                ttsManager?.stop()
-                                currentScreen = AppScreen.LevelSelect(screen.category)
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-
-                    TestCategory.SPEAKING -> {
-                        SpeakingTestScreen(
-                            level = screen.level,
-                            ttsManager = ttsManager,
-                            onTestFinished = onTestFinished,
-                            onBackClick = {
-                                ttsManager?.stop()
-                                currentScreen = AppScreen.LevelSelect(screen.category)
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-
-                    TestCategory.WRITING -> {
-                        WritingTestScreen(
-                            level = screen.level,
-                            onTestFinished = onTestFinished,
-                            onBackClick = {
-                                currentScreen = AppScreen.LevelSelect(screen.category)
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    }
-                }
+                QuizScreen(
+                    category = screen.category,
+                    level = screen.level,
+                    ttsManager = ttsManager,
+                    onTestFinished = onTestFinished,
+                    onBackClick = {
+                        ttsManager?.stop()
+                        currentScreen = AppScreen.LevelSelect(screen.category)
+                    },
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
 
             is AppScreen.Result -> {
@@ -217,7 +162,7 @@ private fun MainAppLevelSelectPreview() {
     AppMobileEnglishTrickTheme {
         MainApp(
             ttsManager = null,
-            initialScreen = AppScreen.LevelSelect(TestCategory.LISTENING)
+            initialScreen = AppScreen.LevelSelect(TestCategory.KIDS)
         )
     }
 }
@@ -230,18 +175,17 @@ private fun MainAppResultPreview() {
             ttsManager = null,
             initialScreen = AppScreen.Result(
                 TestResult(
-                    category = TestCategory.READING,
-                    level = DifficultyLevel.EASY,
-                    score = 90,
-                    totalQuestions = 10,
-                    correctCount = 9,
+                    category = TestCategory.KIDS,
+                    level = DifficultyLevel.LEVEL_1,
                     reviews = listOf(
                         QuestionReview(
                             questionNumber = 1,
+                            skill = SkillType.READING,
                             prompt = "Which word is a synonym for 'rapid'?",
                             userAnswer = "Fast",
                             correctAnswer = "Fast",
                             isCorrect = true,
+                            scorePercent = 100,
                             explanation = "'Rapid' means happening in a short time or at great speed."
                         )
                     )
