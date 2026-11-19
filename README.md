@@ -24,7 +24,7 @@ Aplikasi Android untuk tes dan pembelajaran bahasa Inggris berbasis Jetpack Comp
 
 1. **Clone repository ini:**
    ```bash
-   git clone https://github.com/Robinno11/English-Trick-Mobile.git
+   git clone https://github.com/Robinno11/English-Trick-Mobile-Final.git
    ```
 
 2. **Buka di Android Studio:**
